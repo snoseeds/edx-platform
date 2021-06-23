@@ -390,12 +390,10 @@ define(['jquery', 'backbone', 'underscore', 'gettext', 'js/views/baseview',
     });
 
     SelfPacedDueDateEditor = AbstractEditor.extend({
-        fieldName: 'due_num_weeks',
         templateName: 'self-paced-due-date-editor',
         className: 'modal-section-content has-actions due-date-input grading-due-date',
-
         events: {
-            'click .clear-date': 'clearValue',
+            'change #due_in': 'validateDueIn',
             'keyup #due_in': 'validateDueIn',
             'blur #due_in': 'validateDueIn',
         },
@@ -404,43 +402,62 @@ define(['jquery', 'backbone', 'underscore', 'gettext', 'js/views/baseview',
             return parseInt(this.$('#due_in').val());
         },
 
+        showProjectedDate: function() {
+            var startDate = DateUtils.parseDateFromString(this.model.get('start'));
+            startDate = new Date(startDate.getUTCFullYear(), startDate.getUTCMonth(), startDate.getUTCDate());
+            var startDateList = startDate.toDateString().split(' ')
+            this.$("#relative_weeks_due_start_date").text(startDateList[1] + ' ' + startDateList[2] + ', ' + startDateList[3]);
+            var projectedDate = new Date(startDate)
+            projectedDate.setDate(projectedDate.getDate() + this.getValue()*7);
+            projectedDate = new Date(projectedDate.getUTCFullYear(), projectedDate.getUTCMonth(), projectedDate.getUTCDate())
+            var projectedDateList = projectedDate.toDateString().split(' ')
+            this.$("#relative_weeks_due_projected_due_in").text(projectedDateList[1] + ' ' + projectedDateList[2] + ', ' + projectedDateList[3]);
+            if (startDate <= projectedDate) {
+                this.$('#relative_weeks_due_projected').show();
+            }
+        },
+
         validateDueIn: function() {
             if (this.getValue() > 18){
-                this.$('#due-num-weeks-warning-max').show();
+                this.$('#relative_weeks_due_warning_max').show();
+                this.$('#relative_weeks_due_projected').hide();
                 BaseModal.prototype.disableActionButton.call(this.parent, 'save');
             }
             else if (this.getValue() < 1){
-                this.$('#due-num-weeks-warning-min').show()
+                this.$('#relative_weeks_due_warning_min').show()
+                this.$('#relative_weeks_due_projected').hide();
                 BaseModal.prototype.disableActionButton.call(this.parent, 'save');
             }
             else {
-                this.$('#due-num-weeks-warning-max').hide();
-                this.$('#due-num-weeks-warning-min').hide();
+                this.$('#relative_weeks_due_warning_max').hide();
+                this.$('#relative_weeks_due_warning_min').hide();
+                this.$('#relative_weeks_due_projected').hide();
+                if (this.model.get('start')){
+                    this.showProjectedDate();
+                }
                 BaseModal.prototype.enableActionButton.call(this.parent, 'save');
             }
         },
 
-        clearValue: function(event) {
-            event.preventDefault();
-            this.$('#due_in').val('');
-        },
-
         afterRender: function() {
             AbstractEditor.prototype.afterRender.call(this);
-            this.$('.field-due-in input').val(this.model.get('due_num_weeks'));
+            this.$('.field-due-in input').val(this.model.get('relative_weeks_due'));
+            this.$('#relative_weeks_due_projected').hide();
+            if (this.getValue() && this.model.get('start')){
+                this.showProjectedDate();
+            }
         },
 
         getRequestData: function() {
-            if (this.getValue() < 19 && this.getValue() > 0) {
+            if (this.getValue() < 19 && this.getValue() > 0 && this.$('#relative_date_input').css('display') !== 'none') {
                 return {
                     metadata: {
-                        due_num_weeks: this.getValue()
+                        relative_weeks_due: this.getValue()
                     }
                 };
             }
-        }
+        },
     });
-
 
     ReleaseDateEditor = BaseDateEditor.extend({
         fieldName: 'start',
@@ -692,10 +709,27 @@ define(['jquery', 'backbone', 'underscore', 'gettext', 'js/views/baseview',
     GradingEditor = AbstractEditor.extend({
         templateName: 'grading-editor',
         className: 'edit-settings-grading',
+        events: {
+            'change #grading_type': 'handleGradingSelect',
+        },
+
+        handleGradingSelect: function(event) {
+            event.preventDefault();
+            if (this.$('#grading_type').val() !== 'notgraded' && course.get('self_paced') && course.get('is_custom_pls_active')) {
+                $('#relative_date_input').show();
+            } else {
+                $('#relative_date_input').hide();
+            }
+        },
 
         afterRender: function() {
             AbstractEditor.prototype.afterRender.call(this);
             this.setValue(this.model.get('format') || 'notgraded');
+            $('#relative_date_input').hide();
+
+            if (this.$('#grading_type').val() !== 'notgraded' && course.get('self_paced') && course.get('is_custom_pls_active')){
+                $('#relative_date_input').show();
+            }
         },
 
         setValue: function(value) {
@@ -707,9 +741,18 @@ define(['jquery', 'backbone', 'underscore', 'gettext', 'js/views/baseview',
         },
 
         getRequestData: function() {
-            return {
-                graderType: this.getValue()
-            };
+            if (this.$('#grading_type').val() === 'notgraded' && course.get('self_paced') && course.get('is_custom_pls_active')){
+                return {
+                    graderType: this.getValue(),
+                    metadata: {
+                        relative_weeks_due: null
+                    }
+                }
+            } else {
+                return {
+                    graderType: this.getValue()
+                };
+            }
         },
 
         getContext: function() {
@@ -1133,7 +1176,6 @@ define(['jquery', 'backbone', 'underscore', 'gettext', 'js/views/baseview',
                     if (course.get('self_paced') && course.get('is_custom_pls_active')) {
                         tabs[0].editors.push(SelfPacedDueDateEditor);
                     }
-
                     if (options.enable_proctored_exams || options.enable_timed_exams) {
                         advancedTab.editors.push(TimedExaminationPreferenceEditor);
                     }

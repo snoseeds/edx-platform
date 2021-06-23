@@ -47,9 +47,9 @@ class InheritanceMixin(XBlockMixin):
         scope=Scope.settings,
     )
     # This attribute is for custom pacing in self paced courses for Studio if CUSTOM_PLS flag is active
-    due_num_weeks = Integer(
-        display_name=_("Number of Weeks Due By"),
-        help=_("Enter the number of weeks the problems are due by relative to the learner's start date"),
+    relative_weeks_due = Integer(
+        display_name=_("Number of Relative Weeks Due By"),
+        help=_("Enter the number of weeks the problems are due by relative to the learner's enrollment date"),
         scope=Scope.settings,
     )
     visible_to_staff_only = Boolean(
