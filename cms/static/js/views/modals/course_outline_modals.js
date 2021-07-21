@@ -431,6 +431,14 @@ define(['jquery', 'backbone', 'underscore', 'gettext', 'js/views/baseview',
         },
 
         getRequestData: function() {
+            window.analytics.track('edx.bi.studio.relative_date.saved', {
+                org_key: course.get('org'),
+                courserun_key: course.get('id'),
+                block_id: this.model.get('id'),
+                course_name: course.get('name'),
+                course_num: course.get('num'),
+                edited_on: this.model.get('edited_on')
+                });
             if (this.getValue() < 19 && this.getValue() > 0) {
                 return {
                     metadata: {
