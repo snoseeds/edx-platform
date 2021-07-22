@@ -78,15 +78,11 @@ class CoursewareMeta:
             username or self.request.user.username,
             course_key,
         )
-        # We must compute course load access *before* setting up masquerading,
-        # else course staff (who are not enrolled) will not be able view
-        # their course from the perspective of a learner.
         self.load_access = check_course_access(
             self.overview,
             self.request.user,
             'load',
             check_if_enrolled=True,
-            check_survey_complete=False,
             check_if_authenticated=True,
         )
         self.original_user_is_staff = has_access(self.request.user, 'staff', self.overview).has_access
@@ -166,7 +162,7 @@ class CoursewareMeta:
         return course.license
 
     @property
-    def can_load_courseware(self) -> dict:
+    def course_access(self) -> dict:
         """
         Can the user load this course in the learning micro-frontend?
 
